@@ -21,8 +21,7 @@ def searchNode(node, tag, name):
 def traverseXml(node):
     fn_uncov = [c for c in node if c.tag == commontag + 'fn' and int(c.attrib['fn_cov']) < int(c.attrib['fn_total'])]
     cd_uncov_fn = [c for c in node if c.tag == commontag + 'fn'
-                   and int(c.attrib['cd_cov']) < int(c.attrib['cd_total'])
-                   and c.attrib['kind'] != 'function']
+                   and int(c.attrib['cd_cov']) < int(c.attrib['cd_total'])]
     # in [ 'decision','condition','switch-label','try','catch','for-range-body']]
 
     f = open('D:/res.csv', 'w')
@@ -49,108 +48,60 @@ def traverseXml(node):
         for fn in cd_uncov_fn:
             child_index = 1
             for cd in fn:
+                nLine =int(cd.attrib['line'])
+                def write(condition,index,c_index):
+                    line = []
+                    def add(item,l=line):
+                        s=str(item)
+                        if '"' in s:
+                            s.replace('"','""')
+                        s = '"' + s + '"'
+                        l += str(item)
+                        l += ','
 
-                def write():
-                    line = ''
-
-                    def add(item):
-                        line.append(str(item))
-                        line.append(',')
-
-                    add(index)
-                    add('../GJG' + os.path.split(path)[0])
-                    add(os.path.split(path)[1])
-                    add(fn.attrib['name'] if child_index == 1 else '')
+                    line.append(index)
+                    line.append('../GJG' + os.path.split(path)[0])
+                    line.append(os.path.split(path)[1])
+                    line.append(fn.attrib['name'] if c_index==1  else '')
                     fn_total = int(fn.attrib['fn_total'])
                     fn_cov = int(fn.attrib['fn_cov'])
-                    add(fn_total - fn_cov if child_index == 1 else '')
-                    cd_total = int(fn.attrib['fn_total'])
+                    line.append(fn_total - fn_cov if c_index == 1 else '')
+                    cd_total = int(fn.attrib['cd_total'])
                     cd_cov = int(fn.attrib['cd_cov'])
-                    add(cd_total - cd_cov if child_index == 1 else '')
-                    add(child_index)
-                child_index,
-                nLine,
-                cpplines[int(nLine) - 1].replace("\n", "").replace(" ", ""),  # '',#
-                contoin,
-                '\n'
+                    line.append(cd_total - cd_cov if c_index == 1 else '')
+                    line.append(c_index)
+                    line.append(nLine)
+                    line.append(cpplines[nLine - 1].replace("\n", "").replace(" ", ""))
+                    line.append(condition)
+                    line.append('')
+                    line.append('\n')
+                    for item in line:
+                        s=str(item)
+                        if '"' in s:
+                            s.replace('"','""')
+                        if '\n' not in s:
+                            s = '"' + s + '"'
+                            f.write(s)
+                            f.write(',')
+                        else:
+                            f.write(s)
 
-                if cd.attrib['kind'] == 'for-range-body':
-                    print('非条件line： ', cd.attrib['line'])
-                kind = cd.attrib['kind']
-                if kind == 'decision' or kind == 'condition' or kind == 'switch-label':
-                    nLine = cd.attrib['line']
-                    str_event = cd.attrib['event']
-                    runtrue = False
-                    runfalse = False
+                str_event = cd.attrib['event']
+                if cd.attrib['kind'] in ['decision','condition']:
                     if str_event == 'full':
                         pass
-                    if str_event == 'true':
-                        runtrue = True
-                    if str_event == 'false':
-                        runfalse = True
-                    if str_event == 'none':
-                        runtrue = True
-                        runfalse = True
-                        if cd.attrib['kind'] == 'switch-label':
-                            runtrue = False
-                    if runfalse:
-                        contoin = 'T'
-                        if 'column' in cd.attrib:
-                            contoin = 't'
-                        if cd.attrib['kind'] == 'switch-label':
-                            contoin = 'case'
-                        # "序号,路径,文件,函数,函数未覆盖数,条件未覆盖数，未覆盖条件序号,行数,语句,分析条件,覆盖路径,备注\n"
-                        f.write('%d,%s,%s,"%s",%s,%s,%d,%s,"%s",%s,,%s' % (index,
-                                                                           '../GJG' + os.path.split(path)[0],
-                                                                           os.path.split(path)[1],
-                                                                           fn.attrib[
-                                                                               'name'] if child_index == 1 else '',
-                                                                           str(int(fn.attrib['fn_total']) - int(
-                                                                               fn.attrib[
-                                                                                   'fn_cov'])) if child_index == 1 else '',
-                                                                           str(int(fn.attrib['cd_total']) - int(
-                                                                               fn.attrib[
-                                                                                   'cd_cov'])) if child_index == 1 else '',
-                                                                           child_index,
-                                                                           nLine,
-                                                                           cpplines[int(nLine) - 1].replace("\n",
-                                                                                                            "").replace(
-                                                                               " ", ""),
-                                                                           # '',#
-                                                                           contoin,
-                                                                           '\n'))
+                    if str_event in ['true','none']:
+                        write('F',index, child_index)
+                        child_index+=1
                         index += 1
+                    if str_event in ['false','none']:
+                        write('T', index,child_index)
                         child_index += 1
-
-                    fnname = fn.attrib['name']
-                    if runtrue:
-                        contoin = 'F'
-                        if 'column' in cd.attrib:
-                            contoin = 'f'
-
-                        # "序号,路径,文件,函数,函数未覆盖数,条件未覆盖数，未覆盖条件序号,行数,语句,分析条件,覆盖路径,备注\n"
-                        f.write('%d,%s,%s,"%s",%s,%s,%d,%s,"%s",%s,,%s' % (index,
-                                                                           '../GJG' + os.path.split(path)[0],
-                                                                           os.path.split(path)[1],
-                                                                           fn.attrib[
-                                                                               'name'] if child_index == 1 else '',
-                                                                           str(int(fn.attrib['fn_total']) - int(
-                                                                               fn.attrib[
-                                                                                   'fn_cov'])) if child_index == 1 else '',
-                                                                           str(int(fn.attrib['cd_total']) - int(
-                                                                               fn.attrib[
-                                                                                   'cd_cov'])) if child_index == 1 else '',
-                                                                           child_index,
-                                                                           nLine,
-                                                                           cpplines[int(nLine) - 1].replace("\n",
-                                                                                                            "").replace(
-                                                                               " ", ""),
-                                                                           # '',
-                                                                           contoin,
-                                                                           '\n'))
                         index += 1
-                        child_index += 1
-
+                elif cd.attrib['kind'] not in ['function','constant'] and str_event != 'full'  :
+                    write(cd.attrib['kind'],index, child_index)
+                    child_index += 1
+                    index += 1
         # wbk.save('test.xls')
 
 
