@@ -1,0 +1,175 @@
+import xml.etree.ElementTree as ET
+import os
+import sys
+import xlwt
+
+gjgpath = r'E:/GJG/trunk'
+path = r"/src/GJGPlugin/Model/GJGNormPropInfoWriter.cpp"
+commontag = '{http://www.bullseye.com/covxml}'
+searchRes = []
+wbk = xlwt.Workbook()
+sheet = wbk.add_sheet('sheet 1')
+
+
+def searchNode(node, tag, name):
+    for child in node:
+        if child.tag == commontag + tag and child.attrib['name'] == name:
+            searchRes.append(child)
+        searchNode(child, tag, name)
+
+
+def traverseXml(node):
+    fn_uncov = [c for c in node if c.tag == commontag + 'fn' and int(c.attrib['fn_cov']) < int(c.attrib['fn_total'])]
+    cd_uncov_fn = [c for c in node if c.tag == commontag + 'fn'
+                   and int(c.attrib['cd_cov']) < int(c.attrib['cd_total'])
+                   and c.attrib['kind'] != 'function']
+    # in [ 'decision','condition','switch-label','try','catch','for-range-body']]
+
+    f = open('D:/res.csv', 'w')
+    if len(fn_uncov) > 0:
+        # sheet.write(0, 1, '函数覆盖率分析:')  # 第0行第一列写入内容
+        f.write("函数覆盖率分析：\n")
+        f.write("序号,路径,文件,函数,函数未覆盖数,条件未覆盖数,覆盖路径,备注\n")
+        for i in range(len(fn_uncov)):
+            f.write('%d,%s,%s,"%s",%d,%d,,%s' % (i + 1,
+                                                 '../GJG' + os.path.split(path)[0],
+                                                 os.path.split(path)[1],
+                                                 fn_uncov[i].attrib['name'],
+                                                 int(fn_uncov[i].attrib['fn_total']) - int(
+                                                     fn_uncov[i].attrib['fn_cov']),
+                                                 int(fn_uncov[i].attrib['cd_total']) - int(
+                                                     fn_uncov[i].attrib['cd_cov']),
+                                                 '\n'))
+    if len(cd_uncov_fn) > 0:
+        cpp = open(gjgpath + path)
+        cpplines = cpp.readlines()
+        f.write("条件覆盖率分析：\n")
+        f.write("序号,路径,文件,函数,函数未覆盖数,条件未覆盖数,未覆盖条件序号,行数,语句,分析条件,覆盖路径,备注\n")
+        index = 1
+        for fn in cd_uncov_fn:
+            child_index = 1
+            for cd in fn:
+
+                def write():
+                    line = ''
+
+                    def add(item):
+                        line.append(str(item))
+                        line.append(',')
+
+                    add(index)
+                    add('../GJG' + os.path.split(path)[0])
+                    add(os.path.split(path)[1])
+                    add(fn.attrib['name'] if child_index == 1 else '')
+                    fn_total = int(fn.attrib['fn_total'])
+                    fn_cov = int(fn.attrib['fn_cov'])
+                    add(fn_total - fn_cov if child_index == 1 else '')
+                    cd_total = int(fn.attrib['fn_total'])
+                    cd_cov = int(fn.attrib['cd_cov'])
+                    add(cd_total - cd_cov if child_index == 1 else '')
+                    add(child_index)
+                child_index,
+                nLine,
+                cpplines[int(nLine) - 1].replace("\n", "").replace(" ", ""),  # '',#
+                contoin,
+                '\n'
+
+                if cd.attrib['kind'] == 'for-range-body':
+                    print('非条件line： ', cd.attrib['line'])
+                kind = cd.attrib['kind']
+                if kind == 'decision' or kind == 'condition' or kind == 'switch-label':
+                    nLine = cd.attrib['line']
+                    str_event = cd.attrib['event']
+                    runtrue = False
+                    runfalse = False
+                    if str_event == 'full':
+                        pass
+                    if str_event == 'true':
+                        runtrue = True
+                    if str_event == 'false':
+                        runfalse = True
+                    if str_event == 'none':
+                        runtrue = True
+                        runfalse = True
+                        if cd.attrib['kind'] == 'switch-label':
+                            runtrue = False
+                    if runfalse:
+                        contoin = 'T'
+                        if 'column' in cd.attrib:
+                            contoin = 't'
+                        if cd.attrib['kind'] == 'switch-label':
+                            contoin = 'case'
+                        # "序号,路径,文件,函数,函数未覆盖数,条件未覆盖数，未覆盖条件序号,行数,语句,分析条件,覆盖路径,备注\n"
+                        f.write('%d,%s,%s,"%s",%s,%s,%d,%s,"%s",%s,,%s' % (index,
+                                                                           '../GJG' + os.path.split(path)[0],
+                                                                           os.path.split(path)[1],
+                                                                           fn.attrib[
+                                                                               'name'] if child_index == 1 else '',
+                                                                           str(int(fn.attrib['fn_total']) - int(
+                                                                               fn.attrib[
+                                                                                   'fn_cov'])) if child_index == 1 else '',
+                                                                           str(int(fn.attrib['cd_total']) - int(
+                                                                               fn.attrib[
+                                                                                   'cd_cov'])) if child_index == 1 else '',
+                                                                           child_index,
+                                                                           nLine,
+                                                                           cpplines[int(nLine) - 1].replace("\n",
+                                                                                                            "").replace(
+                                                                               " ", ""),
+                                                                           # '',#
+                                                                           contoin,
+                                                                           '\n'))
+                        index += 1
+                        child_index += 1
+
+                    fnname = fn.attrib['name']
+                    if runtrue:
+                        contoin = 'F'
+                        if 'column' in cd.attrib:
+                            contoin = 'f'
+
+                        # "序号,路径,文件,函数,函数未覆盖数,条件未覆盖数，未覆盖条件序号,行数,语句,分析条件,覆盖路径,备注\n"
+                        f.write('%d,%s,%s,"%s",%s,%s,%d,%s,"%s",%s,,%s' % (index,
+                                                                           '../GJG' + os.path.split(path)[0],
+                                                                           os.path.split(path)[1],
+                                                                           fn.attrib[
+                                                                               'name'] if child_index == 1 else '',
+                                                                           str(int(fn.attrib['fn_total']) - int(
+                                                                               fn.attrib[
+                                                                                   'fn_cov'])) if child_index == 1 else '',
+                                                                           str(int(fn.attrib['cd_total']) - int(
+                                                                               fn.attrib[
+                                                                                   'cd_cov'])) if child_index == 1 else '',
+                                                                           child_index,
+                                                                           nLine,
+                                                                           cpplines[int(nLine) - 1].replace("\n",
+                                                                                                            "").replace(
+                                                                               " ", ""),
+                                                                           # '',
+                                                                           contoin,
+                                                                           '\n'))
+                        index += 1
+                        child_index += 1
+
+        # wbk.save('test.xls')
+
+
+def main():
+    tree = ET.parse(r"C:\Users\wangjb-a\Desktop\E6迭代\覆盖率\01.xml")
+    root = tree.getroot()
+    searchNode(root, 'src', os.path.split(path)[1])
+    print('find ' + str(len(searchRes)))
+    # 搜索结果
+    node = searchRes[0]  # 多个的时候来改序号
+    print(node.attrib)
+    fn_cov = int(node.attrib['fn_cov'])
+    fn_total = int(node.attrib['fn_total'])
+    print('函数覆盖率: %d/%d = %f 未覆盖: %d' % (fn_cov, fn_total, fn_cov / fn_total, fn_total - fn_cov))
+    cd_cov = float(node.attrib['cd_cov'])
+    cd_total = float(node.attrib['cd_total'])
+    print('条件覆盖率: %d/%d = %f 未覆盖: %d' % (cd_cov, cd_total, cd_cov / cd_total, cd_total - cd_cov))
+    traverseXml(node)
+
+
+if __name__ == '__main__':
+    main()
