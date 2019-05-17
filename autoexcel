@@ -51,13 +51,6 @@ def traverseXml(node):
                 nLine =int(cd.attrib['line'])
                 def write(condition,index,c_index):
                     line = []
-                    def add(item,l=line):
-                        s=str(item)
-                        if '"' in s:
-                            s.replace('"','""')
-                        s = '"' + s + '"'
-                        l += str(item)
-                        l += ','
 
                     line.append(index)
                     line.append('../GJG' + os.path.split(path)[0])
@@ -88,14 +81,12 @@ def traverseXml(node):
 
                 str_event = cd.attrib['event']
                 if cd.attrib['kind'] in ['decision','condition']:
-                    if str_event == 'full':
-                        pass
-                    if str_event in ['true','none']:
-                        write('F',index, child_index)
+                    if str_event in ['false','none']:
+                        write('T',index, child_index)
                         child_index+=1
                         index += 1
-                    if str_event in ['false','none']:
-                        write('T', index,child_index)
+                    if str_event in ['true','none']:
+                        write('F', index,child_index)
                         child_index += 1
                         index += 1
                 elif cd.attrib['kind'] not in ['function','constant'] and str_event != 'full'  :
@@ -103,7 +94,6 @@ def traverseXml(node):
                     child_index += 1
                     index += 1
         # wbk.save('test.xls')
-
 
 def main():
     tree = ET.parse(r"C:\Users\wangjb-a\Desktop\E6迭代\覆盖率\01.xml")
@@ -120,6 +110,21 @@ def main():
     cd_total = float(node.attrib['cd_total'])
     print('条件覆盖率: %d/%d = %f 未覆盖: %d' % (cd_cov, cd_total, cd_cov / cd_total, cd_total - cd_cov))
     traverseXml(node)
+    ndelfn=int(input('删除函数：'))
+    ndelcd=int(input('删除条件：'))
+    nfindfn=int(input('找到函数覆盖：'))
+    nfindcd=int(input('找到条件覆盖：'))
+    print('名称,未覆盖函数,未覆盖条件,删除函数,删除条件,找到函数覆盖,找到条件覆盖,预计函数覆盖率,预计条件覆盖率,备注')
+    print('%s,%d,%d,%d,%d,%d,%d,%s,%s'%
+          (os.path.split(path)[1],
+           fn_total - fn_cov,
+           cd_total - cd_cov,
+           ndelfn,
+           ndelcd,
+           nfindfn,
+           nfindcd,
+           str(fn_cov/fn_total*100)+'%->'+str((fn_cov+nfindfn)/(fn_total-ndelfn)*100)+'%',
+           str(cd_cov / cd_total*100) + '%->' + str((cd_cov + nfindcd) / (cd_total - ndelcd)*100)+'%'))
 
 
 if __name__ == '__main__':
